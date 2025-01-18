@@ -1,8 +1,6 @@
-# Use the latest stable Node.js 20.x version
 FROM node:20
 
 # Install required font packages and configurations
-# These packages help with font rendering in our application
 RUN apt-get update && apt-get install -y \
     fontconfig \
     fonts-liberation \
@@ -10,18 +8,23 @@ RUN apt-get update && apt-get install -y \
     libfontconfig1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up our application directory
 WORKDIR /app
 
-# Copy all application files to the container
-COPY . .
+# Copy package files first
+COPY package*.json yarn.lock ./
 
-# Install dependencies after cleaning any existing modules
+# Install dependencies
 RUN rm -rf node_modules \
     && yarn install
 
-# Build the application for production
+# Now copy the rest of the application
+COPY . .
+
+# Build the application
 RUN yarn build
 
-# Start the application in production mode
+# This ensures we don't try to run tests or other commands that might need env vars during build
+ENV NODE_ENV=production
+
+# The CMD will run when the container starts, when env vars are available
 CMD ["yarn", "start:prod"]
