@@ -1,8 +1,8 @@
-# Start with the official Node.js image - specifying the exact version for consistency
-FROM node:20.19.0
+# Use the latest stable Node.js 20.x version
+FROM node:20
 
 # Install required font packages and configurations
-# We group these commands together to create a single Docker layer
+# These packages help with font rendering in our application
 RUN apt-get update && apt-get install -y \
     fontconfig \
     fonts-liberation \
@@ -10,19 +10,18 @@ RUN apt-get update && apt-get install -y \
     libfontconfig1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory in the container
+# Set up our application directory
 WORKDIR /app
 
-# Copy the entire application first - this ensures we have all necessary files
+# Copy all application files to the container
 COPY . .
 
-# Install dependencies using yarn
-# We remove any existing node_modules to ensure a clean install
+# Install dependencies after cleaning any existing modules
 RUN rm -rf node_modules \
     && yarn install
 
-# Build the application
+# Build the application for production
 RUN yarn build
 
-# Command to run the application
+# Start the application in production mode
 CMD ["yarn", "start:prod"]
