@@ -10,6 +10,14 @@ import sharp from 'sharp';
  */
 @Injectable()
 export class ImageService {
+  constructor() {
+    // Register font once when service is initialized
+    registerFont(
+      path.join(__dirname, '../../src/assets/fonts/Silkscreen-Regular.ttf'),
+      { family: 'Silkscreen' },
+    );
+  }
+
   private drawTextWithSpacing(
     ctx: import('canvas').CanvasRenderingContext2D,
     text: string,
@@ -101,11 +109,6 @@ export class ImageService {
     collectionMetadata: InscriptionMetadata,
   ) {
     const { collectionName, collectionImageUri, websiteLink } = collectionMetadata;
-
-    registerFont(
-      path.join(__dirname, '../../src/assets/fonts/Silkscreen-Regular.ttf'),
-      { family: 'Silkscreen' },
-    );
 
     const backgroundColor = '#FF04B4';
     const textColor = '#000000';
