@@ -104,9 +104,15 @@ export class AppService implements OnModuleInit {
       log.args = { ...log.args, ...decoded.args };
     }
     
-    // Ordex returns the hashId as a bigint (👎)
+    // Ordex returns the hashId as a uint256 (👎)
     let hashId = log.args[marketEvent.hashIdTarget];
-    if (typeof hashId === 'bigint') hashId = toHex(hashId);
+    if (typeof hashId === 'bigint') {
+      hashId = toHex(hashId);
+      // Ensure hashId is bytes32 (32 bytes = 64 hex chars + '0x' prefix = 66 chars)
+      if (hashId.length < 66) {
+        hashId = hashId.replace('0x', '0x' + '0'.repeat(66 - hashId.length));
+      }
+    }
     const value = formatUnits(log.args[marketEvent.valueTarget], 18);
     const seller = log.args[marketEvent.sellerTarget];
     const buyer = log.args[marketEvent.buyerTarget];
