@@ -39,7 +39,7 @@ export class AppService implements OnModuleInit {
       } else if (process.env.TEST_WITH_RANGE.split(',').length === 2) {
         this.testWithRange();
       }
-    }, 2000);
+    }, 5000);
   }
 
   /**

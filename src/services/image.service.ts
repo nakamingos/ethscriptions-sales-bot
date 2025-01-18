@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
-
 import { InscriptionMetadata } from '@/models/inscription';
-
 import { createCanvas, Image, registerFont } from 'canvas';
 import { mkdir, writeFile } from 'fs/promises';
-
 import path from 'path';
 import sharp from 'sharp';
 
@@ -13,16 +10,46 @@ import sharp from 'sharp';
  */
 @Injectable()
 export class ImageService {
+  private drawTextWithSpacing(
+    ctx: import('canvas').CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    spacing: number
+  ): number {
+    let currentX = x;
+    const characters = text.split('');
+    
+    for (let i = 0; i < characters.length; i++) {
+      const char = characters[i];
+      ctx.fillText(char, currentX, y);
+      
+      const metrics = ctx.measureText(char);
+      currentX += metrics.width + spacing;
+    }
 
-  /**
-   * Generates an image for an inscription
-   * @param hashId The hash ID of the inscription
-   * @param value The value of the inscription
-   * @param txHash The transaction hash of the inscription
-   * @param imageUri The URI of the inscription image
-   * @param collectionMetadata The metadata of the collection
-   * @returns The generated image as a buffer
-   */
+    return currentX - x;
+  }
+
+  private measureTextWithSpacing(
+    ctx: import('canvas').CanvasRenderingContext2D,
+    text: string,
+    spacing: number
+  ): number {
+    const characters = text.split('');
+    let totalWidth = 0;
+    
+    for (let i = 0; i < characters.length; i++) {
+      const metrics = ctx.measureText(characters[i]);
+      totalWidth += metrics.width;
+      if (i < characters.length - 1) {
+        totalWidth += spacing;
+      }
+    }
+    
+    return totalWidth;
+  }
+
   async generate(
     hashId: string,
     value: string,
@@ -36,15 +63,6 @@ export class ImageService {
     );
   }
 
-  /**
-   * Generates a basic image for an inscription
-   * @param hashId The hash ID of the inscription
-   * @param value The value of the inscription
-   * @param txHash The transaction hash of the inscription
-   * @param imageUri The URI of the inscription image
-   * @param collectionMetadata The metadata of the collection
-   * @returns The generated image as a buffer
-   */
   async generateBasicImage(
     hashId: string,
     value: string,
@@ -52,46 +70,29 @@ export class ImageService {
     imageUri: string,
     collectionMetadata: InscriptionMetadata,
   ) {
-    // Create a temporary canvas at original size first
     const tempCanvas = createCanvas(1200, 1200);
     const tempCtx = tempCanvas.getContext('2d');
     tempCtx.imageSmoothingEnabled = false;
 
     const inscriptionImg = await this.createInscriptionImage(imageUri);
 
-    // Calculate height maintaining aspect ratio
     const aspectRatio = inscriptionImg.height / inscriptionImg.width;
     const scaledHeight = Math.round(1200 * aspectRatio);
 
-    // Create final canvas with correct dimensions
     const canvas = createCanvas(1200, scaledHeight);
     const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false;  // Critical for pixel art!
+    ctx.imageSmoothingEnabled = false;
 
-    // Draw background
-    ctx.fillStyle = '#C3FF00';
+    ctx.fillStyle = '#FF04B4';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw image at original size first, then scale
     tempCtx.drawImage(inscriptionImg, 0, 0, inscriptionImg.width, inscriptionImg.height);
     ctx.drawImage(tempCanvas, 0, 0, inscriptionImg.width, inscriptionImg.height, 
                  0, 0, canvas.width, canvas.height);
 
-    // Convert to buffer
-    const buffer = canvas.toBuffer('image/png');
-
-    return buffer;
+    return canvas.toBuffer('image/png');
   }
 
-  /**
-   * Generates an image for an inscription
-   * @param hashId The hash ID of the inscription
-   * @param value The value of the inscription
-   * @param txHash The transaction hash of the inscription
-   * @param imageUri The URI of the inscription image
-   * @param collectionMetadata The metadata of the collection
-   * @returns The generated image as a buffer
-   */
   async generateCardImage(
     hashId: string,
     value: string,
@@ -101,16 +102,14 @@ export class ImageService {
   ) {
     const { collectionName, collectionImageUri, websiteLink } = collectionMetadata;
 
-    // Register custom font
     registerFont(
-      path.join(__dirname, '../../src/assets/fonts/enter-the-gungeon-small.ttf'),
-      { family: 'RetroComputer' },
+      path.join(__dirname, '../../src/assets/fonts/Silkscreen-Regular.ttf'),
+      { family: 'Silkscreen' },
     );
 
-    const backgroundColor = '#C3FF00'; //C3FF00
+    const backgroundColor = '#FF04B4';
     const textColor = '#000000';
-    const borderColor = '#000000';
-    const borderWidth = 16;
+    const frameExtension = 16; // Makes frame 32px larger (16px each side)
 
     const canvasWidth = 1200;
     const canvasHeight = 1470;
@@ -120,15 +119,16 @@ export class ImageService {
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
 
+    // Main background
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    // add black background to top 3rd of canvas
+    // Black header background
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight / 4);
 
-    // Add collection image
-    const collectionImageSize = 100;
+    // Collection image
+    const collectionImageSize = 108; // 27 * 4 for pixel perfect scaling
     if (collectionImageUri) {
       const collectionImage = await fetch(collectionImageUri);
       const collectionImageBuffer = await collectionImage.arrayBuffer();
@@ -137,102 +137,119 @@ export class ImageService {
       collectionImg.src = Buffer.from(collectionImageData);
       ctx.drawImage(
         collectionImg,
-        padding + borderWidth / 2,
+        padding,
         padding,
         collectionImageSize,
         collectionImageSize,
       );
     }
 
-    // Add collection name to top
-    ctx.fillStyle = backgroundColor;
-    ctx.font = 'normal 60px RetroComputer';
-    const collectionNameHeight = 50;
-    ctx.fillText(
+    // Calculate text position to be used for both collection name and URL
+    const textStartX = collectionImageUri ? 
+      (padding + collectionImageSize + 30) : 
+      padding;
+      
+    // Collection name
+    ctx.fillStyle = '#C3FF00';
+    ctx.font = 'normal 72px Silkscreen';
+    const collectionNameHeight = 55;
+    const letterSpacing = -7;
+    
+    this.drawTextWithSpacing(
+      ctx,
       collectionName.toUpperCase(),
-      collectionImageUri ? (padding + collectionImageSize + 40) : (padding + 10),
+      textStartX,
       padding + collectionNameHeight + 5,
+      letterSpacing
     );
 
-    // Add collection url
-    ctx.fillStyle = backgroundColor;
-    ctx.font = 'normal 30px RetroComputer';
+    // Collection URL
+    ctx.fillStyle = '#C3FF00';
+    ctx.font = 'normal 40px Silkscreen';
+    const urlSpacing = -3;
     const collectionUrl = websiteLink.replace('https://', '');
     const collectionUrlHeight = 20;
-    ctx.fillText(
+    
+    this.drawTextWithSpacing(
+      ctx,
       collectionUrl.toUpperCase(),
-      collectionImageUri ? (padding + collectionImageSize + 40) : (padding + 10),
+      textStartX + 4,  // Added 5px offset
       padding + collectionNameHeight + collectionUrlHeight + 30,
+      urlSpacing
     );
 
     const inscriptionImg = await this.createInscriptionImage(imageUri);
-    const imageWidth = canvasWidth - (padding * 2) - borderWidth;
-    const imageHeight = canvasWidth - (padding * 2) - borderWidth;
+    const imageWidth = canvasWidth - (padding * 2);
+    const imageHeight = canvasWidth - (padding * 2);
+    const imageY = padding + collectionNameHeight + collectionUrlHeight + 50 + (padding / 2);
 
-    // Add a background to the image
+    // Draw black frame
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(
+      padding - frameExtension,
+      imageY - frameExtension,
+      imageWidth + (frameExtension * 2),
+      imageHeight + (frameExtension * 2)
+    );
+
+    // Draw pink background for image
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(
-      padding + borderWidth / 2,
-      padding + collectionNameHeight + collectionUrlHeight + 50 + (padding / 2) + borderWidth / 2,
+      padding,
+      imageY,
       imageWidth,
-      imageHeight,
+      imageHeight
     );
     
-    // Add the inscription image
+    // Draw inscription image
     ctx.drawImage(
       inscriptionImg,
-      padding + borderWidth / 2,
-      padding + collectionNameHeight + collectionUrlHeight + 50 + (padding / 2) + borderWidth / 2,
+      padding,
+      imageY,
       imageWidth,
-      imageHeight,
+      imageHeight
     );
 
-    // Add border to image
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = borderWidth;
-    ctx.strokeRect(
-      padding,
-      padding + collectionNameHeight + collectionUrlHeight + 40 + (padding / 2),
-      canvasWidth - (padding * 2),
-      canvasWidth - (padding * 2),
-    );
-
-    // Add ethscription name to bottom under image
+    // Add inscription name to bottom
     ctx.fillStyle = textColor;
-    ctx.font = 'normal 80px RetroComputer';
-    const itemNameWidth = ctx.measureText(collectionMetadata.itemName).width;
-    if (itemNameWidth > canvasWidth - (padding * 2)) {
-      ctx.font = 'normal 60px RetroComputer';
-    }
-    ctx.fillText(
+    ctx.font = 'normal 96px Silkscreen';
+    const nameSpacing = -12;
+    
+    const itemNameWidth = this.measureTextWithSpacing(
+      ctx, 
       collectionMetadata.itemName.toUpperCase(),
-      padding,
-      canvasHeight - padding,
+      nameSpacing
+    );
+    
+    if (itemNameWidth > canvasWidth - (padding * 2)) {
+      ctx.font = 'normal 65px Silkscreen';
+    }
+
+    // Position bottom text to align with inscription image's visible edge
+    const textStartPosition = padding - frameExtension + 5;  // Added 10px offset to the right
+    
+    this.drawTextWithSpacing(
+      ctx,
+      collectionMetadata.itemName.toUpperCase(),
+      textStartPosition,  // Use adjusted position to align with frame
+      canvasHeight - (padding * 0.75),  // Moved text down by a quarter of padding
+      nameSpacing
     );
 
     return canvas.toBuffer('image/png');
   }
 
-  /**
-   * Creates an image from a data URI (SVG or PNG)
-   * @param imageUri The URI of the inscription image
-   * @returns The generated image as a buffer
-   */
   async createInscriptionImage(imageUri: string) {
-    // Create Image
     const inscriptionImg = new Image();
     try {
       let imageBuffer: Buffer;
       if (imageUri.startsWith('data:image/svg+xml')) {
-        // Convert URL-encoded SVG data URI to buffer
         const svgContent = decodeURIComponent(imageUri.split(',')[1]);
         const svgBuffer = Buffer.from(svgContent);
-        // Convert SVG to PNG using Sharp
         imageBuffer = await sharp(svgBuffer)
           .png()
           .toBuffer();
       } else {
-        // Regular URL - fetch and convert if SVG
         const response = await fetch(imageUri);
         const arrayBuffer = await response.arrayBuffer();
         const fetchedBuffer = Buffer.from(arrayBuffer);
@@ -254,18 +271,12 @@ export class ImageService {
     return inscriptionImg;
   }
 
-  /**
-   * Saves an image to a file
-   * @param collectionName The name of the collection
-   * @param hashId The hash ID of the inscription
-   * @param imageBuffer The image to save
-   */
   async saveImage(
     collectionName: string,
     hashId: string,
     imageBuffer: Buffer,
   ) {
-    const folderPath = path.join(__dirname, `../../_static`);
+    const folderPath = path.join(__dirname, '../../_static');
     await mkdir(folderPath, { recursive: true });
 
     await writeFile(
