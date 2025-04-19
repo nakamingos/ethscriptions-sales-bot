@@ -97,7 +97,7 @@ export const collections = [
 ];
 ```
 
-Collection metadata should follow either the standard format or Emblem Vault format.
+Collection metadata should follow either the standard format, Ethereum Phunks Market metadata format or Emblem Vault format.
 
 ## Market Configuration
 

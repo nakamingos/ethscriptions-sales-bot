@@ -36,7 +36,7 @@ export class AppService implements OnModuleInit {
       // Test with history or range
       if (Number(process.env.TEST_WITH_HISTORY)) {
         this.testWithHistory();
-      } else if (process.env.TEST_WITH_RANGE.split(',').length === 2) {
+      } else if (process.env.TEST_WITH_RANGE?.split(',').length === 2) {
         this.testWithRange();
       }
     }, 5000);

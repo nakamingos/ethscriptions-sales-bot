@@ -54,13 +54,13 @@ export class CollectionService implements OnModuleInit {
         }
 
         // TODO: Fix this
-        // Currently supports standard metadata and emblem vault metadata
+        // Currently supports standard metadata, etherphunk market metadata, and emblem vault metadata
         const data = await response.json() as JSONCollection | any;
 
         const collectionName = data.name;
         const collectionImageHash = this.utilSvc.extractHex(data.logo_image_uri || data.inscription_icon);
         const backgroundColor = data.background_color;
-        const websiteLink = data.website_link;
+        const websiteLink = data.website_link || data.website_url;
 
         for (const item of (data.collection_items || (data as any).inscriptions)) {
           const hashId = item.ethscription_id?.toLowerCase() || item.id?.toLowerCase();
@@ -72,7 +72,7 @@ export class CollectionService implements OnModuleInit {
               itemName: item.name || item.meta.name,
               backgroundColor,
               websiteLink,
-              collectionImageUri: data.logo_image_uri || data.inscription_icon,
+              collectionImageUri: data.logo_image_uri || data.inscription_icon || data.logo_image,
             };
             this.memoryCache.set(cacheKey, cacheData);
           }
