@@ -143,8 +143,8 @@ export class AppService implements OnModuleInit {
 
     // Create the notification message
     const notificationMessage: NotificationMessage = {
-      title: `${collectionMetadata.itemName} was sold`,
-      message: `From: ${sellerEns || this.utilSvc.formatAddress(seller)}\nTo: ${buyerEns || this.utilSvc.formatAddress(buyer)}\n\nFor: ${value} ETH ($${this.utilSvc.formatCash(Number(value) * this.dataSvc.usdPrice)})`,
+      title: `${collectionMetadata.itemName} WAS SOLD!`,
+      message: `For: ${value} ETH ($${this.utilSvc.formatCash(Number(value) * this.dataSvc.usdPrice)})\n\nSeller: ${sellerEns || this.utilSvc.formatAddress(seller)}\nBuyer: ${buyerEns || this.utilSvc.formatAddress(buyer)}`,
       link: `https://etherscan.io/tx/${txHash}`,
       imageBuffer: imageAttachment,
       filename: `${hashId}.png`,
