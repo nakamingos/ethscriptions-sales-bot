@@ -91,7 +91,7 @@ export class ImageService {
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
 
-    ctx.fillStyle = '#FF04B4';
+    ctx.fillStyle = '#FF008C';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     tempCtx.drawImage(inscriptionImg, 0, 0, inscriptionImg.width, inscriptionImg.height);
