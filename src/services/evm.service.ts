@@ -53,9 +53,9 @@ export class EvmService {
 
     // Query in chunks of CHUNK_SIZE blocks
     for (let fromBlock = startBlock; fromBlock <= endBlock; fromBlock += BigInt(CHUNK_SIZE)) {
-      const toBlock = fromBlock + BigInt(CHUNK_SIZE) - 1n > endBlock 
+      const toBlock = fromBlock + BigInt(CHUNK_SIZE) - BigInt(1) > endBlock 
         ? endBlock 
-        : fromBlock + BigInt(CHUNK_SIZE) - 1n;
+        : fromBlock + BigInt(CHUNK_SIZE) - BigInt(1);
       
       try {
         const chunkLogs = await this.client.getLogs({
