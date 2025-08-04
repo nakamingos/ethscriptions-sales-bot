@@ -47,23 +47,33 @@ export class EvmService {
       endBlock = BigInt(blockRange.endBlock);
     }
 
-    const CHUNK_SIZE = 10_000;
+    // Use 500 block chunks to respect Alchemy's eth_getLogs limit
+    const CHUNK_SIZE = 500;
     const logs = [];
 
     // Query in chunks of CHUNK_SIZE blocks
-    for (let fromBlock = startBlock; fromBlock < endBlock; fromBlock += BigInt(CHUNK_SIZE)) {
-      const toBlock = fromBlock + BigInt(CHUNK_SIZE) > endBlock 
+    for (let fromBlock = startBlock; fromBlock <= endBlock; fromBlock += BigInt(CHUNK_SIZE)) {
+      const toBlock = fromBlock + BigInt(CHUNK_SIZE) - 1n > endBlock 
         ? endBlock 
-        : fromBlock + BigInt(CHUNK_SIZE);
+        : fromBlock + BigInt(CHUNK_SIZE) - 1n;
       
-      const chunkLogs = await this.client.getLogs({
-        address: market.address,
-        // If there is an event trigger, use it, otherwise use the market event signature
-        event: parseAbiItem(marketEvent.eventTrigger?.signature || marketEvent.signature) as AbiEvent,
-        fromBlock,
-        toBlock,
-      });
-      logs.push(...chunkLogs);
+      try {
+        const chunkLogs = await this.client.getLogs({
+          address: market.address,
+          // If there is an event trigger, use it, otherwise use the market event signature
+          event: parseAbiItem(marketEvent.eventTrigger?.signature || marketEvent.signature) as AbiEvent,
+          fromBlock,
+          toBlock,
+        });
+        logs.push(...chunkLogs);
+        
+        // Small delay to be nice to the RPC provider
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        console.error(`Failed to get logs for blocks ${fromBlock}-${toBlock}:`, error);
+        // Continue with next batch rather than failing completely
+      }
     }
     return logs;
   }
