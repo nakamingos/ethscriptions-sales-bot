@@ -4,11 +4,11 @@
  */
 export const collections = [
   {
-    metadataUrl: "https://raw.githubusercontent.com/nakamingos/nakamingos/refs/heads/main/metadata/metadata-nakamingos.json",
+    metadataUrl: "https://raw.githubusercontent.com/nakamingos/nakamingos/refs/heads/main/metadata/nakamingos.json",
     twitterAccount: "Nakamingos", // Replace with actual Twitter account
   },
   {
-    metadataUrl: "https://raw.githubusercontent.com/nakamingos/nakamingos/refs/heads/main/metadata/metadata-misprintmingos.json",
+    metadataUrl: "https://raw.githubusercontent.com/nakamingos/misprint-mingos/refs/heads/main/metadata/misprint-mingos.json",
     twitterAccount: "Nakamingos", // Replace with actual Twitter account
   },
   {
