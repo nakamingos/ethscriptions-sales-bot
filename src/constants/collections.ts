@@ -17,7 +17,7 @@ export const collections = [
   },
   {
     metadataUrl: "https://raw.githubusercontent.com/Snepsid/EVM-Sales-Bot/refs/heads/main/currated-metadata/ittybits.json",
-    twitterAccount: "ittybits_sales", // Replace with actual Twitter account
+    twitterAccount: "ittybits_bot", // Replace with actual Twitter account
   }
   // Uncomment and add collections with their Twitter accounts
   // {
