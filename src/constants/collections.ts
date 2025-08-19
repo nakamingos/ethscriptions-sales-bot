@@ -14,6 +14,10 @@ export const collections = [
   {
     metadataUrl: "https://raw.githubusercontent.com/NoMoreLabs/Call-Data-Comrades/refs/heads/main/metadata/call-data-comrades.json",
     twitterAccount: "NoMoreLabsSales", // Replace with actual Twitter account
+  },
+  {
+    metadataUrl: "https://raw.githubusercontent.com/Snepsid/EVM-Sales-Bot/refs/heads/main/currated-metadata/ittybits.json",
+    twitterAccount: "ittybits_sales", // Replace with actual Twitter account
   }
   // Uncomment and add collections with their Twitter accounts
   // {
