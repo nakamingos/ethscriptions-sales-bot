@@ -81,6 +81,21 @@ export const markets: Market[] = [
         buyerTarget: 'buyer',
       }
     ]
+  },
+  {
+    marketplaceName: 'ittybits Marketplace',
+    marketplaceUrl: 'https://ittybits.xyz',
+    address: '0xa8Ee53258865c55a521727127D8a64c414163D36' as `0x${string}`,
+    events: [
+      {
+        signature: signatures.ittybitsSaleSignature,
+        name: 'IttybitBought',
+        hashIdTarget: 'ittybitId',
+        valueTarget: 'value',
+        sellerTarget: 'fromAddress',
+        buyerTarget: 'toAddress',
+      }
+    ]
   }
 ];
 

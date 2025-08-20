@@ -21,3 +21,6 @@ export const etherPhunksSaleSignature = `event PhunkBought(bytes32 indexed phunk
 
 export const memeScribeSaleSignature = `event EthscriptionPurchased(bytes32 indexed ethscriptionId, uint256 price, address indexed seller, address indexed buyer)`;
 // Example: 0xfaebaf69df34013777ac50febc63727d6761b16c8bb860a799fcdaa334ea09e7
+
+export const ittybitsSaleSignature = `event IttybitBought(index_topic_1 bytes32 ittybitId, uint256 value, index_topic_2 address fromAddress, index_topic_3 address toAddress)`;
+// Example: 0xb7fee67029204535f512543713c48e7ca36a873e5b85878b075713feb8e52c96
