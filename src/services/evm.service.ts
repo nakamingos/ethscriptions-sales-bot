@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
-import { AbiEvent, createPublicClient, fromHex, http, parseAbiItem } from 'viem';
-import { mainnet } from 'viem/chains';
+import { AbiEvent, fromHex, parseAbiItem } from 'viem';
 
 import { UtilService } from '@/services/util.service';
+import { MultiRPCProviderService } from '@/services/multi-rpc-provider.service';
 
 import { Market, MarketplaceEvent } from '@/models/evm';
 
@@ -17,12 +17,10 @@ config();
 @Injectable()
 export class EvmService {
 
-  private client = createPublicClient({
-    chain: mainnet,
-    transport: http(process.env.RPC_URL)
-  });
-
-  constructor(private readonly utilSvc: UtilService) {}
+  constructor(
+    private readonly utilSvc: UtilService,
+    private readonly multiRpcProvider: MultiRPCProviderService
+  ) {}
   
   /**
    * Fetches historical sales events from a marketplace contract by querying logs in chunks
@@ -40,7 +38,7 @@ export class EvmService {
     let endBlock: bigint;
 
     if (typeof blockRange === 'number') {
-      endBlock = await this.client.getBlockNumber();
+      endBlock = await this.multiRpcProvider.safeCall(client => client.getBlockNumber());
       startBlock = endBlock - BigInt(blockRange);
     } else {
       startBlock = BigInt(blockRange.startBlock);
@@ -58,16 +56,19 @@ export class EvmService {
         : fromBlock + BigInt(CHUNK_SIZE) - BigInt(1);
       
       try {
-        const chunkLogs = await this.client.getLogs({
-          address: market.address,
-          event: parseAbiItem(marketEvent.signature) as AbiEvent,
-          fromBlock,
-          toBlock,
-        });
+        const chunkLogs = await this.multiRpcProvider.safeCall(client => 
+          client.getLogs({
+            address: market.address,
+            event: parseAbiItem(marketEvent.signature) as AbiEvent,
+            fromBlock,
+            toBlock,
+          })
+        ) as any[];
         logs.push(...chunkLogs);
         
-        // Small delay to be nice to the RPC provider
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Conservative delay to respect RPC provider rate limits (Infura: ~10 req/sec)
+        // Using 500ms to be extra safe and avoid overwhelming free tier limits
+        await new Promise(resolve => setTimeout(resolve, 500));
         
       } catch (error) {
         console.error(`Failed to get logs for blocks ${fromBlock}-${toBlock}:`, error);
@@ -86,7 +87,8 @@ export class EvmService {
   watchEvent(market: Market, marketEvent: MarketplaceEvent): EventEmitter {
     const emitter = new EventEmitter();
     
-    const unwatch = this.client.watchEvent({
+    const client = this.multiRpcProvider.getClient();
+    const unwatch = client.watchEvent({
       address: market.address,
       event: parseAbiItem(marketEvent.signature) as AbiEvent,
       onLogs: logs => emitter.emit('event', logs)
@@ -106,7 +108,9 @@ export class EvmService {
    * @returns The transaction receipt data
    */
   async getTransactionReceipt(transactionHash: `0x${string}`) {
-    return await this.client.getTransactionReceipt({ hash: transactionHash });
+    return await this.multiRpcProvider.safeCall(client => 
+      client.getTransactionReceipt({ hash: transactionHash })
+    );
   }
 
   /**
@@ -115,7 +119,9 @@ export class EvmService {
    * @returns The data URI string containing the image data, or null if not found
    */
   async getInscriptionImageFromHashId(hashId: `0x${string}`): Promise<string | null> {
-    const tx = await this.client.getTransaction({ hash: hashId });
+    const tx = await this.multiRpcProvider.safeCall(client => 
+      client.getTransaction({ hash: hashId })
+    ) as any;
     const dataURI = fromHex(tx.input, 'string');
     return dataURI || null;
   }
@@ -127,7 +133,9 @@ export class EvmService {
    */
   async getEnsName(address: `0x${string}`): Promise<string | null> {
     try {
-      return await this.client.getEnsName({ address });
+      return await this.multiRpcProvider.safeCall(client => 
+        client.getEnsName({ address })
+      );
     } catch (error) {
       console.error(error);
       return null;

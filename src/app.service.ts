@@ -106,6 +106,8 @@ export class AppService implements OnModuleInit {
     if (collectionMetadata.collectionImageHash) {
       const collectionImage = await this.evmSvc.getInscriptionImageFromHashId(collectionMetadata.collectionImageHash);
       if (collectionImage) collectionMetadata.collectionImageUri = collectionImage;
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     Logger.log(`New event from supported collection: ${collectionMetadata.collectionName}`, 'AppService');
@@ -113,14 +115,18 @@ export class AppService implements OnModuleInit {
     // Get the inscription data
     const inscriptionImageUri = await this.evmSvc.getInscriptionImageFromHashId(hashId);
     if (!inscriptionImageUri) return;
+    
+    // Small delay to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Generate the image
     const imageAttachment = await this.imageSvc.generate(hashId, value, txHash, inscriptionImageUri, collectionMetadata);
 
-    const [buyerEns, sellerEns] = await Promise.all([
-      this.evmSvc.getEnsName(buyer),
-      this.evmSvc.getEnsName(seller),
-    ]);
+    // Get ENS names sequentially to avoid concurrent RPC calls
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const buyerEns = await this.evmSvc.getEnsName(buyer);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const sellerEns = await this.evmSvc.getEnsName(seller);
 
     // Create the notification message
     const notificationMessage: NotificationMessage = {
@@ -154,18 +160,24 @@ export class AppService implements OnModuleInit {
    */
   async testWithHistory() {
     Logger.log(`Testing with history: ${process.env.TEST_WITH_HISTORY}`, 'AppService');
-    // Iterate markets
+    // Process markets sequentially to avoid overwhelming RPC providers
     for (const market of markets) {
-      // Iterate events for each market
+      // Process events for each market sequentially
       for (const marketEvent of market.events) {
+        Logger.log(`Processing market: ${market.marketplaceName}, event: ${marketEvent.name}`, 'AppService');
+        
         // Example usage
         const saleLogs = await this.evmSvc.indexPreviousEvents(
           market, 
           marketEvent, 
           Number(process.env.TEST_WITH_HISTORY)
         );
+        
+        // Process each log sequentially to avoid rate limiting
         for (const log of saleLogs) {
           await this.handleEvent(market, marketEvent, [log]);
+          // Small delay between processing events to be extra safe with RPC calls
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
     }
