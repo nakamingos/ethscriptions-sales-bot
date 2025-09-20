@@ -34,25 +34,6 @@ export const markets: Market[] = [
     ]
   },
   {
-    marketplaceName: 'Ordex',
-    marketplaceUrl: 'https://ordex.io',
-    address: '0xC33F8610941bE56fB0d84E25894C0d928CC97ddE' as `0x${string}`,
-    events: [
-      {
-        signature: signatures.ordexSaleSignature,
-        name: 'Match',
-        hashIdTarget: '_ethscriptionId',
-        valueTarget: 'newLeftFill',
-        sellerTarget: '_from',
-        buyerTarget: '_to',
-        eventTrigger: {
-          signature: signatures.ordexInternalTransferSignature,
-          address: '0xC89C2E6FE008592D6a787eFd02DB7fDB8eA64020',
-        }
-      }
-    ]
-  },
-  {
     marketplaceName: 'EtherPhunks Market',
     marketplaceUrl: 'https://etherphunks.eth.limo',
     address: '0xD3418772623Be1a3cc6B6D45CB46420CEdD9154a' as `0x${string}`,

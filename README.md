@@ -9,7 +9,7 @@ A NestJS-based bot that monitors Ethereum blockchain events for Ethscription sal
 - MemeScribe
 - Etch Market
 - EtherPhunks Market
-- Ordex
+- ittybits Marketplace
 
 👍 **Dynamic Image Generation**: Creates custom notification images for sales featuring:
 - Collection branding

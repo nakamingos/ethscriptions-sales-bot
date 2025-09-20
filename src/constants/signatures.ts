@@ -10,12 +10,6 @@ export const ethscriptionsDotComSaleSignature = `event EthscriptionPurchased(add
 export const etchSaleSignature = `event EthscriptionOrderExecuted(bytes32 indexed orderHash, uint256 orderNonce, bytes32 ethscriptionId, uint256 quantity, address seller, address buyer, address currency, uint256 price, uint64 endTime)`;
 // Example: 0xc1c15b1ca214aaeb02809c93234113aef8be1f6666740d4fe65af8ec25ade7fe
 
-export const ordexSaleSignature = `event Match(bytes32 leftHash, bytes32 rightHash, uint256 newLeftFill, uint256 newRightFill)`;
-// Example: 0x594eb8cfafe74f3d766a55a20d896b867e8cafd842f42ec72ed77d23d8b282fb
-
-export const ordexInternalTransferSignature = `event InternalItemTransfer(address indexed _from, address indexed _to, uint256 indexed _ethscriptionId)`;
-// Example: 0x594eb8cfafe74f3d766a55a20d896b867e8cafd842f42ec72ed77d23d8b282fb
-
 export const etherPhunksSaleSignature = `event PhunkBought(bytes32 indexed phunkId, uint256 value, address indexed fromAddress, address indexed toAddress)`;
 // Example: 0xedc24e0093c5843f30f5230c70667ab34d030619e8c91bbc124012ecba289f0b
 

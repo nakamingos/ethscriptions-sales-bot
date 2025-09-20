@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
-import { AbiEvent, decodeEventLog, formatUnits, Log, parseAbiItem, toEventHash, toHex } from 'viem';
+import { AbiEvent, decodeEventLog, formatUnits, Log, parseAbiItem, toHex } from 'viem';
 
 import { markets } from '@/constants/markets';
 
@@ -84,27 +84,8 @@ export class AppService implements OnModuleInit {
     if (!log) return;
 
     const txHash = log.transactionHash;
-    // If there is an event trigger, find the matching log
-    if (marketEvent.eventTrigger) {
-      // Get the transaction receipt
-      const receipt = await this.evmSvc.getTransactionReceipt(txHash);
-      // Find the matching log for main event
-      const matchingLog = receipt.logs.find((log: Log<bigint, number, boolean, typeof eventType>) => 
-        log.address.toLowerCase() === marketEvent.eventTrigger.address.toLowerCase() &&
-        log.topics[0] === toEventHash(marketEvent.signature)
-      );
-      if (!matchingLog) return;
-      // Decode the event trigger log
-      const decoded = decodeEventLog({
-        abi: [parseAbiItem(marketEvent.signature)],
-        topics: (matchingLog as any).topics,
-        data: (matchingLog as any).data,
-      }) as any;
-      // Combine the main event log and the event trigger log
-      log.args = { ...log.args, ...decoded.args };
-    }
     
-    // Ordex returns the hashId as a uint256 (👎)
+    // Extract hashId and handle different formats
     let hashId = log.args[marketEvent.hashIdTarget];
     if (typeof hashId === 'bigint') {
       hashId = toHex(hashId);
@@ -125,6 +106,8 @@ export class AppService implements OnModuleInit {
     if (collectionMetadata.collectionImageHash) {
       const collectionImage = await this.evmSvc.getInscriptionImageFromHashId(collectionMetadata.collectionImageHash);
       if (collectionImage) collectionMetadata.collectionImageUri = collectionImage;
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     Logger.log(`New event from supported collection: ${collectionMetadata.collectionName}`, 'AppService');
@@ -132,14 +115,18 @@ export class AppService implements OnModuleInit {
     // Get the inscription data
     const inscriptionImageUri = await this.evmSvc.getInscriptionImageFromHashId(hashId);
     if (!inscriptionImageUri) return;
+    
+    // Small delay to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Generate the image
     const imageAttachment = await this.imageSvc.generate(hashId, value, txHash, inscriptionImageUri, collectionMetadata);
 
-    const [buyerEns, sellerEns] = await Promise.all([
-      this.evmSvc.getEnsName(buyer),
-      this.evmSvc.getEnsName(seller),
-    ]);
+    // Get ENS names sequentially to avoid concurrent RPC calls
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const buyerEns = await this.evmSvc.getEnsName(buyer);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const sellerEns = await this.evmSvc.getEnsName(seller);
 
     // Create the notification message
     const notificationMessage: NotificationMessage = {
@@ -173,18 +160,24 @@ export class AppService implements OnModuleInit {
    */
   async testWithHistory() {
     Logger.log(`Testing with history: ${process.env.TEST_WITH_HISTORY}`, 'AppService');
-    // Iterate markets
+    // Process markets sequentially to avoid overwhelming RPC providers
     for (const market of markets) {
-      // Iterate events for each market
+      // Process events for each market sequentially
       for (const marketEvent of market.events) {
+        Logger.log(`Processing market: ${market.marketplaceName}, event: ${marketEvent.name}`, 'AppService');
+        
         // Example usage
         const saleLogs = await this.evmSvc.indexPreviousEvents(
           market, 
           marketEvent, 
           Number(process.env.TEST_WITH_HISTORY)
         );
+        
+        // Process each log sequentially to avoid rate limiting
         for (const log of saleLogs) {
           await this.handleEvent(market, marketEvent, [log]);
+          // Small delay between processing events to be extra safe with RPC calls
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
     }
