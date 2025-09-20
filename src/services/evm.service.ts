@@ -60,8 +60,7 @@ export class EvmService {
       try {
         const chunkLogs = await this.client.getLogs({
           address: market.address,
-          // If there is an event trigger, use it, otherwise use the market event signature
-          event: parseAbiItem(marketEvent.eventTrigger?.signature || marketEvent.signature) as AbiEvent,
+          event: parseAbiItem(marketEvent.signature) as AbiEvent,
           fromBlock,
           toBlock,
         });
@@ -89,7 +88,7 @@ export class EvmService {
     
     const unwatch = this.client.watchEvent({
       address: market.address,
-      event: parseAbiItem(marketEvent.eventTrigger?.signature || marketEvent.signature) as AbiEvent,
+      event: parseAbiItem(marketEvent.signature) as AbiEvent,
       onLogs: logs => emitter.emit('event', logs)
     });
 

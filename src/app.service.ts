@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
-import { AbiEvent, decodeEventLog, formatUnits, Log, parseAbiItem, toEventHash, toHex } from 'viem';
+import { AbiEvent, decodeEventLog, formatUnits, Log, parseAbiItem, toHex } from 'viem';
 
 import { markets } from '@/constants/markets';
 
@@ -84,27 +84,8 @@ export class AppService implements OnModuleInit {
     if (!log) return;
 
     const txHash = log.transactionHash;
-    // If there is an event trigger, find the matching log
-    if (marketEvent.eventTrigger) {
-      // Get the transaction receipt
-      const receipt = await this.evmSvc.getTransactionReceipt(txHash);
-      // Find the matching log for main event
-      const matchingLog = receipt.logs.find((log: Log<bigint, number, boolean, typeof eventType>) => 
-        log.address.toLowerCase() === marketEvent.eventTrigger.address.toLowerCase() &&
-        log.topics[0] === toEventHash(marketEvent.signature)
-      );
-      if (!matchingLog) return;
-      // Decode the event trigger log
-      const decoded = decodeEventLog({
-        abi: [parseAbiItem(marketEvent.signature)],
-        topics: (matchingLog as any).topics,
-        data: (matchingLog as any).data,
-      }) as any;
-      // Combine the main event log and the event trigger log
-      log.args = { ...log.args, ...decoded.args };
-    }
     
-    // Ordex returns the hashId as a uint256 (👎)
+    // Extract hashId and handle different formats
     let hashId = log.args[marketEvent.hashIdTarget];
     if (typeof hashId === 'bigint') {
       hashId = toHex(hashId);

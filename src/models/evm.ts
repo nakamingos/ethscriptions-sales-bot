@@ -1,10 +1,6 @@
 export type MarketplaceEvent = {
   signature: string;
   name: string;
-  eventTrigger?: {
-    signature: string;
-    address: `0x${string}`;
-  };
 } & EventTargets;
 
 export interface Market {
