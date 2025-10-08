@@ -47,8 +47,8 @@ export class EvmService {
       endBlock = BigInt(blockRange.endBlock);
     }
 
-    // Use 500 block chunks to respect Alchemy's eth_getLogs limit
-    const CHUNK_SIZE = 500;
+    // Use 10 block chunks to respect Alchemy's eth_getLogs limit
+    const CHUNK_SIZE = 10;
     const logs = [];
 
     // Query in chunks of CHUNK_SIZE blocks
