@@ -154,21 +154,18 @@ export class AppService implements OnModuleInit {
    */
   async testWithHistory() {
     Logger.log(`Testing with history: ${process.env.TEST_WITH_HISTORY}`, 'AppService');
-    // Iterate markets
-    for (const market of markets) {
-      // Iterate events for each market
-      for (const marketEvent of market.events) {
-        // Example usage
-        const saleLogs = await this.evmSvc.indexPreviousEvents(
-          market, 
-          marketEvent, 
-          Number(process.env.TEST_WITH_HISTORY)
-        );
-        for (const log of saleLogs) {
-          await this.handleEvent(market, marketEvent, [log]);
+    
+    // Query all marketplaces at once and process each chunk immediately
+    await this.evmSvc.indexPreviousEventsMultiMarket(
+      markets,
+      Number(process.env.TEST_WITH_HISTORY),
+      async (logs) => {
+        // Process each chunk immediately as it's retrieved
+        for (const { log, market, event } of logs) {
+          await this.handleEvent(market, event, [log]);
         }
       }
-    }
+    );
   }
 
   /**
@@ -180,23 +177,20 @@ export class AppService implements OnModuleInit {
    */
   async testWithRange() {
     Logger.log(`Testing with range: ${process.env.TEST_WITH_RANGE}`, 'AppService');
-    // Iterate markets
-    for (const market of markets) {
-      // Iterate events for each market
-      for (const marketEvent of market.events) {
-        // Example usage
-        const saleLogs = await this.evmSvc.indexPreviousEvents(
-          market, 
-          marketEvent, 
-          {
-            startBlock: Number(process.env.TEST_WITH_RANGE.split(',')[0]),
-            endBlock: Number(process.env.TEST_WITH_RANGE.split(',')[1])
-          }
-        );
-        for (const log of saleLogs) {
-          await this.handleEvent(market, marketEvent, [log]);
+    
+    // Query all marketplaces at once and process each chunk immediately
+    await this.evmSvc.indexPreviousEventsMultiMarket(
+      markets,
+      {
+        startBlock: Number(process.env.TEST_WITH_RANGE.split(',')[0]),
+        endBlock: Number(process.env.TEST_WITH_RANGE.split(',')[1])
+      },
+      async (logs) => {
+        // Process each chunk immediately as it's retrieved
+        for (const { log, market, event } of logs) {
+          await this.handleEvent(market, event, [log]);
         }
       }
-    }
+    );
   }
 }

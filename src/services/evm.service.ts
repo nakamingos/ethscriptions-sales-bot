@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { AbiEvent, createPublicClient, fromHex, http, parseAbiItem } from 'viem';
+import { AbiEvent, createPublicClient, encodeEventTopics, fromHex, http, parseAbiItem } from 'viem';
 import { mainnet } from 'viem/chains';
 
 import { UtilService } from '@/services/util.service';
@@ -47,8 +47,8 @@ export class EvmService {
       endBlock = BigInt(blockRange.endBlock);
     }
 
-    // Use 10 block chunks to respect Alchemy's eth_getLogs limit
-    const CHUNK_SIZE = 10;
+    // Use 250 block chunks to respect Alchemy's eth_getLogs limit
+    const CHUNK_SIZE = 250;
     const logs = [];
 
     // Query in chunks of CHUNK_SIZE blocks
@@ -75,6 +75,103 @@ export class EvmService {
       }
     }
     return logs;
+  }
+
+  /**
+   * Fetches historical sales events from multiple marketplace contracts by querying logs in chunks
+   * More efficient than calling indexPreviousEvents for each marketplace separately
+   * @param markets Array of marketplace configurations
+   * @param blockRange Number of blocks to look back from current block, or object containing start and end blocks
+   * @param onChunkProcessed Optional callback to process logs immediately as each chunk is retrieved
+   */
+  async indexPreviousEventsMultiMarket(
+    markets: Market[],
+    blockRange: number | { startBlock: number; endBlock: number } = 100_000,
+    onChunkProcessed?: (logs: Array<{ log: any; market: Market; event: MarketplaceEvent }>) => Promise<void>
+  ) {
+    let startBlock: bigint;
+    let endBlock: bigint;
+
+    if (typeof blockRange === 'number') {
+      endBlock = await this.client.getBlockNumber();
+      startBlock = endBlock - BigInt(blockRange);
+    } else {
+      startBlock = BigInt(blockRange.startBlock);
+      endBlock = BigInt(blockRange.endBlock);
+    }
+
+    // Collect all addresses and event signatures
+    const addresses = markets.map(m => m.address);
+    const eventTopics = markets.flatMap(m => 
+      m.events.map(e => {
+        const abiEvent = parseAbiItem(e.signature) as AbiEvent;
+        return abiEvent;
+      })
+    );
+
+    const CHUNK_SIZE = 10;
+    const totalBlocks = endBlock - startBlock + BigInt(1);
+    let processedBlocks = BigInt(0);
+
+    // Query in chunks of CHUNK_SIZE blocks
+    for (let fromBlock = startBlock; fromBlock <= endBlock; fromBlock += BigInt(CHUNK_SIZE)) {
+      const toBlock = fromBlock + BigInt(CHUNK_SIZE) - BigInt(1) > endBlock 
+        ? endBlock 
+        : fromBlock + BigInt(CHUNK_SIZE) - BigInt(1);
+      
+      processedBlocks += (toBlock - fromBlock + BigInt(1));
+      const progress = Number((processedBlocks * BigInt(100)) / totalBlocks);
+      console.log(`Processing blocks ${fromBlock} - ${toBlock} (${progress}% complete)`);
+      
+      try {
+        // Query all marketplaces at once
+        const chunkLogs = await this.client.getLogs({
+          address: addresses,
+          events: eventTopics,
+          fromBlock,
+          toBlock,
+        });
+
+        // Map logs back to their market and event
+        const processedLogs: Array<{ log: any; market: Market; event: MarketplaceEvent }> = [];
+        
+        for (const log of chunkLogs) {
+          const market = markets.find(m => 
+            m.address.toLowerCase() === log.address.toLowerCase()
+          );
+          
+          if (!market) continue;
+
+          const event = market.events.find(e => {
+            const abiEvent = parseAbiItem(e.signature) as AbiEvent;
+            // Encode the event signature to get its topic hash
+            const eventTopic = encodeEventTopics({
+              abi: [abiEvent],
+              eventName: abiEvent.name,
+            })[0];
+            // Compare the topic hash with the log's first topic
+            return log.topics[0] === eventTopic;
+          });
+
+          if (event) {
+            processedLogs.push({ log, market, event });
+          }
+        }
+        
+        // Process this chunk immediately if callback provided
+        if (onChunkProcessed && processedLogs.length > 0) {
+          console.log(`  Found ${processedLogs.length} event(s) in this chunk`);
+          await onChunkProcessed(processedLogs);
+        }
+        
+        // Small delay to be nice to the RPC provider
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        console.error(`Failed to get logs for blocks ${fromBlock}-${toBlock}:`, error);
+        // Continue with next batch rather than failing completely
+      }
+    }
   }
 
   /**
