@@ -99,8 +99,11 @@ export class AppService implements OnModuleInit {
     const buyer = log.args[marketEvent.buyerTarget];
 
     // Check if it's supported
-    const collectionMetadata = this.collectionSvc.getSupportedInscription(hashId);
-    if (!collectionMetadata) return;
+    const collectionMetadata = await this.collectionSvc.getSupportedInscription(hashId);
+    if (!collectionMetadata) {
+      Logger.debug(`Inscription ${hashId} is not from a supported collection`, 'AppService');
+      return;
+    }
 
     // Get the collection image
     if (collectionMetadata.collectionImageHash) {
