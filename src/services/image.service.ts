@@ -132,23 +132,27 @@ export class ImageService {
 
     // Collection image
     const collectionImageSize = 108; // 27 * 4 for pixel perfect scaling
+    let hasCollectionImage = false;
     if (collectionImageUri) {
-      const collectionImage = await fetch(collectionImageUri);
-      const collectionImageBuffer = await collectionImage.arrayBuffer();
-      const collectionImageData = new Uint8Array(collectionImageBuffer);
-      const collectionImg = new Image();
-      collectionImg.src = Buffer.from(collectionImageData);
-      ctx.drawImage(
-        collectionImg,
-        padding,
-        padding,
-        collectionImageSize,
-        collectionImageSize,
-      );
+      try {
+        const collectionImg = await this.createImageFromUri(collectionImageUri);
+        ctx.drawImage(
+          collectionImg,
+          padding,
+          padding,
+          collectionImageSize,
+          collectionImageSize,
+        );
+        hasCollectionImage = true;
+      } catch (error) {
+        if (!this.isSkippableCollectionImageError(error)) {
+          console.error('Error loading collection image:', error);
+        }
+      }
     }
 
     // Calculate text position to be used for both collection name and URL
-    const textStartX = collectionImageUri ? 
+    const textStartX = hasCollectionImage ? 
       (padding + collectionImageSize + 30) : 
       padding;
       
@@ -245,33 +249,69 @@ export class ImageService {
   async createInscriptionImage(imageUri: string) {
     const inscriptionImg = new Image();
     try {
-      let imageBuffer: Buffer;
-      if (imageUri.startsWith('data:image/svg+xml')) {
-        const svgContent = decodeURIComponent(imageUri.split(',')[1]);
-        const svgBuffer = Buffer.from(svgContent);
-        imageBuffer = await sharp(svgBuffer)
-          .png()
-          .toBuffer();
-      } else {
-        const response = await fetch(imageUri);
-        const arrayBuffer = await response.arrayBuffer();
-        const fetchedBuffer = Buffer.from(arrayBuffer);
-        
-        if (imageUri.endsWith('.svg')) {
-          imageBuffer = await sharp(fetchedBuffer)
-            .png()
-            .toBuffer();
-        } else {
-          imageBuffer = fetchedBuffer;
-        }
-      }
-      
+      const imageBuffer = await this.loadImageBuffer(imageUri);
       inscriptionImg.src = imageBuffer;
     } catch (error) {
       console.error('Error loading inscription image:', error);
     }
 
     return inscriptionImg;
+  }
+
+  private async createImageFromUri(imageUri: string) {
+    const image = new Image();
+    image.src = await this.loadImageBuffer(imageUri);
+    return image;
+  }
+
+  private async loadImageBuffer(imageUri: string): Promise<Buffer> {
+    if (imageUri.startsWith('data:')) {
+      return await this.loadDataUriBuffer(imageUri);
+    }
+
+    if (!imageUri.startsWith('http://') && !imageUri.startsWith('https://')) {
+      throw new Error(`Unsupported image URI scheme: ${imageUri.split(':')[0]}`);
+    }
+
+    const response = await fetch(imageUri);
+    const arrayBuffer = await response.arrayBuffer();
+    const fetchedBuffer = Buffer.from(arrayBuffer);
+
+    if (imageUri.endsWith('.svg')) {
+      return await sharp(fetchedBuffer)
+        .png()
+        .toBuffer();
+    }
+
+    return fetchedBuffer;
+  }
+
+  private async loadDataUriBuffer(imageUri: string): Promise<Buffer> {
+    const match = imageUri.match(/^data:([^;,]+)?(?:;charset=[^;,]+)?(?:;(base64))?,(.*)$/s);
+    if (!match) {
+      throw new Error('Invalid data URI');
+    }
+
+    const mimeType = match[1] || '';
+    const isBase64 = Boolean(match[2]);
+    const payload = match[3] || '';
+
+    const rawBuffer = isBase64
+      ? Buffer.from(payload, 'base64')
+      : Buffer.from(decodeURIComponent(payload), 'utf8');
+
+    if (mimeType.includes('svg+xml')) {
+      return await sharp(rawBuffer)
+        .png()
+        .toBuffer();
+    }
+
+    return rawBuffer;
+  }
+
+  private isSkippableCollectionImageError(error: unknown): boolean {
+    return error instanceof Error
+      && /Unsupported image URI scheme: esc/i.test(error.message);
   }
 
   async saveImage(

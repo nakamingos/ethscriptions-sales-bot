@@ -137,7 +137,9 @@ export class CollectionService implements OnModuleInit {
         const data = await response.json() as JSONCollection | any;
 
         const collectionName = data.name;
-        const collectionImageHash = this.utilSvc.extractHex(data.logo_image_uri || data.inscription_icon);
+        const collectionImageHash = this.utilSvc.extractHex(
+          data.logo_image_uri || data.inscription_icon || data.logo_image,
+        );
         const backgroundColor = data.background_color;
         const websiteLink = data.website_link || data.website_url;
         const twitterAccount = collection.twitterAccount; // Extract the Twitter account

@@ -132,3 +132,7 @@ Markets are configured in `src/constants/markets.ts`. Each market definition inc
 ### Twitter Integration
 
 This project uses [agent-twitter-client](https://github.com/elizaOS/agent-twitter-client) (Eliza) for Twitter automation. This client allows posting to Twitter without requiring API keys, making it easier to set up and maintain.
+
+Because X/Twitter now puts more of the login flow behind Cloudflare, long-idle cookie files can expire and automated re-login may get blocked. The bot now supports loading fresh authenticated cookies from `TWITTER_COOKIES_JSON`, `TWITTER_COOKIES_BASE64`, or per-account variants such as `Nakamingos_COOKIES_BASE64`. If media upload is blocked, set `TWITTER_TEXT_ONLY_FALLBACK=1` to retry the post without an image instead of dropping the notification entirely.
+
+For safe historical backfills, posts are queued globally so different accounts do not post at the same time. Tune `POST_INTERVAL_MS` for the base spacing between posts and `POST_INTERVAL_JITTER_MS` for random jitter to avoid a mechanical cadence.

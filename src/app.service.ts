@@ -19,6 +19,7 @@ import { Market, MarketplaceEvent } from '@/models/evm';
  */
 @Injectable()
 export class AppService implements OnModuleInit {
+  private eventQueue: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly evmSvc: EvmService,
@@ -57,10 +58,52 @@ export class AppService implements OnModuleInit {
         const eventEmitter = this.evmSvc.watchEvent(market, marketEvent);
         Logger.log(`Watching event <${marketEvent.name}> on ${market.marketplaceName}`, 'AppService');
         eventEmitter.on('event', (logs: Log[]) => {
-          this.handleEvent(market, marketEvent, logs);
+          this.handleEvent(market, marketEvent, logs).catch((error) => {
+            Logger.error(error, undefined, 'AppService');
+          });
         });
       }
     }
+  }
+
+  private enqueueEventHandling(
+    market: Market,
+    marketEvent: MarketplaceEvent,
+    logs: Log[],
+    options?: { pacedPost?: boolean },
+  ): Promise<void> {
+    const queuedTask = this.eventQueue.then(() => this.handleEvent(market, marketEvent, logs, options));
+    this.eventQueue = queuedTask.catch((error) => {
+      Logger.error(error, undefined, 'AppService');
+    });
+    return queuedTask;
+  }
+
+  private sortLogsInChainOrder(
+    logs: Array<{ log: any; market: Market; event: MarketplaceEvent }>,
+  ) {
+    return [...logs].sort((a, b) => {
+      const blockDiff = this.compareBigInt(a.log.blockNumber, b.log.blockNumber);
+      if (blockDiff !== 0) return blockDiff;
+
+      const txDiff = this.compareNumber(a.log.transactionIndex, b.log.transactionIndex);
+      if (txDiff !== 0) return txDiff;
+
+      return this.compareNumber(a.log.logIndex, b.log.logIndex);
+    });
+  }
+
+  private compareBigInt(a?: bigint, b?: bigint): number {
+    const left = a ?? BigInt(0);
+    const right = b ?? BigInt(0);
+    if (left === right) return 0;
+    return left < right ? -1 : 1;
+  }
+
+  private compareNumber(a?: number, b?: number): number {
+    const left = a ?? 0;
+    const right = b ?? 0;
+    return left - right;
   }
 
   /**
@@ -73,7 +116,8 @@ export class AppService implements OnModuleInit {
   async handleEvent(
     market: Market, 
     marketEvent: MarketplaceEvent, 
-    logs: Log[]
+    logs: Log[],
+    options?: { pacedPost?: boolean }
   ) {
     // Logger.log(`New event: ${market.marketplaceName} -- ${marketEvent.name}`, 'AppService');
 
@@ -140,7 +184,9 @@ export class AppService implements OnModuleInit {
       Logger.error(`No Twitter account configured for collection: ${collectionMetadata.collectionName}`, 'AppService');
       return;
     }
-    await this.twitterSvc.sendTweet(notificationMessage, twitterAccount);
+    await this.twitterSvc.sendTweet(notificationMessage, twitterAccount, {
+      paced: options?.pacedPost,
+    });
 
     // Save the image
     if (Number(process.env.SAVE_IMAGES)) {
@@ -163,9 +209,10 @@ export class AppService implements OnModuleInit {
       markets,
       Number(process.env.TEST_WITH_HISTORY),
       async (logs) => {
-        // Process each chunk immediately as it's retrieved
-        for (const { log, market, event } of logs) {
-          await this.handleEvent(market, event, [log]);
+        for (const { log, market, event } of this.sortLogsInChainOrder(logs)) {
+          await this.enqueueEventHandling(market, event, [log], {
+            pacedPost: true,
+          });
         }
       }
     );
@@ -189,9 +236,10 @@ export class AppService implements OnModuleInit {
         endBlock: Number(process.env.TEST_WITH_RANGE.split(',')[1])
       },
       async (logs) => {
-        // Process each chunk immediately as it's retrieved
-        for (const { log, market, event } of logs) {
-          await this.handleEvent(market, event, [log]);
+        for (const { log, market, event } of this.sortLogsInChainOrder(logs)) {
+          await this.enqueueEventHandling(market, event, [log], {
+            pacedPost: true,
+          });
         }
       }
     );
