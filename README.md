@@ -136,3 +136,5 @@ This project uses [agent-twitter-client](https://github.com/elizaOS/agent-twitte
 Because X/Twitter now puts more of the login flow behind Cloudflare, long-idle cookie files can expire and automated re-login may get blocked. The bot now supports loading fresh authenticated cookies from `TWITTER_COOKIES_JSON`, `TWITTER_COOKIES_BASE64`, or per-account variants such as `Nakamingos_COOKIES_BASE64`. If media upload is blocked, set `TWITTER_TEXT_ONLY_FALLBACK=1` to retry the post without an image instead of dropping the notification entirely.
 
 For safe historical backfills, posts are queued globally so different accounts do not post at the same time. Tune `POST_INTERVAL_MS` for the base spacing between posts and `POST_INTERVAL_JITTER_MS` for random jitter to avoid a mechanical cadence.
+
+If an account is temporarily challenged or under trust restrictions, set `DISABLED_TWITTER_ACCOUNTS` to a comma-separated list such as `ittybits_bot` so the bot can continue processing other collections without attempting to post from that account.

@@ -206,6 +206,11 @@ export class EvmService {
     return await this.client.getTransactionReceipt({ hash: transactionHash });
   }
 
+  async getBlockTimestamp(blockNumber: bigint): Promise<number> {
+    const block = await this.client.getBlock({ blockNumber });
+    return Number(block.timestamp);
+  }
+
   /**
    * Retrieves the image data URI from an ethscription transaction by its hash ID
    * @param hashId The hash ID of the ethscription transaction containing the image

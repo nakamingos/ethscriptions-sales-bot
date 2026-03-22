@@ -246,7 +246,21 @@ export class TwitterService {
       }
     }
 
-    return await this.scraper.isLoggedIn();
+    const loggedIn = await this.scraper.isLoggedIn();
+    if (!loggedIn) {
+      return false;
+    }
+
+    try {
+      const profile = await this.scraper.me();
+      if (profile?.username) {
+        console.log(`Authenticated Twitter session for @${profile.username}`);
+      }
+    } catch {
+      // Ignore profile lookup errors after successful auth verification
+    }
+
+    return true;
   }
 
   private getCookieVariants(cookie: any): Array<{ cookie: string; url: string }> {
@@ -414,6 +428,15 @@ export class TwitterService {
     return Math.max(0, Number(process.env.POST_INTERVAL_MS || 0));
   }
 
+  private isAccountDisabled(twitterAccount: string): boolean {
+    const disabledAccounts = (process.env.DISABLED_TWITTER_ACCOUNTS || '')
+      .split(',')
+      .map((account) => account.trim())
+      .filter(Boolean);
+
+    return disabledAccounts.includes(twitterAccount);
+  }
+
   private getPostIntervalJitterMs(): number {
     const configured = process.env.POST_INTERVAL_JITTER_MS;
     if (configured != null && configured !== '') {
@@ -469,6 +492,11 @@ export class TwitterService {
     data: NotificationMessage,
     twitterAccount: string,
   ): Promise<void> {
+    if (this.isAccountDisabled(twitterAccount)) {
+      console.log(`Twitter posting disabled for ${twitterAccount}, skipping post.`);
+      return;
+    }
+
     // Skip Twitter if it's disabled (TWITTER_ENABLED=0)
     if (!Number(process.env.TWITTER_ENABLED)) {
       console.log("Twitter is disabled (TWITTER_ENABLED=0), skipping tweet and saving image locally instead.");

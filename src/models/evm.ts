@@ -6,6 +6,7 @@ export type MarketplaceEvent = {
 export interface Market {
   marketplaceName: string;
   marketplaceUrl?: string;
+  saleLinkTemplate?: string;
   address: `0x${string}`;
   events: MarketplaceEvent[];
 }

@@ -36,6 +36,7 @@ export const markets: Market[] = [
   {
     marketplaceName: 'EtherPhunks Market',
     marketplaceUrl: 'https://etherphunks.eth.limo',
+    saleLinkTemplate: 'https://ethereumphunks.com/details/<ethscription_ID>',
     address: '0xD3418772623Be1a3cc6B6D45CB46420CEdD9154a' as `0x${string}`,
     events: [
       {
@@ -79,4 +80,3 @@ export const markets: Market[] = [
     ]
   }
 ];
-

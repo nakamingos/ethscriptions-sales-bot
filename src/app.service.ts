@@ -20,6 +20,14 @@ import { Market, MarketplaceEvent } from '@/models/evm';
 @Injectable()
 export class AppService implements OnModuleInit {
   private eventQueue: Promise<void> = Promise.resolve();
+  private readonly backfillTimestampFormatter = new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
 
   constructor(
     private readonly evmSvc: EvmService,
@@ -106,6 +114,36 @@ export class AppService implements OnModuleInit {
     return left - right;
   }
 
+  private formatBackfillTimestamp(unixTimestampSeconds: number): string {
+    const parts = this.backfillTimestampFormatter.formatToParts(
+      new Date(unixTimestampSeconds * 1000),
+    );
+
+    const values = Object.fromEntries(
+      parts
+        .filter((part) => part.type !== 'literal')
+        .map((part) => [part.type, part.value]),
+    );
+
+    return `on ${values.month} ${values.day}, ${values.year} • ${values.hour}:${values.minute} ${values.dayPeriod}`;
+  }
+
+  private getSaleLink(
+    market: Market,
+    hashId: string,
+    txHash: `0x${string}`,
+  ): string {
+    if (market.saleLinkTemplate) {
+      return market.saleLinkTemplate.replace('<ethscription_ID>', hashId);
+    }
+
+    if (market.marketplaceUrl) {
+      return market.marketplaceUrl;
+    }
+
+    return `https://etherscan.io/tx/${txHash}`;
+  }
+
   /**
    * Handles marketplace events by processing sale logs and fetching inscription data
    * 
@@ -141,6 +179,9 @@ export class AppService implements OnModuleInit {
     const value = formatUnits(log.args[marketEvent.valueTarget], 18);
     const seller = log.args[marketEvent.sellerTarget];
     const buyer = log.args[marketEvent.buyerTarget];
+    const blockTimestamp = options?.pacedPost
+      ? await this.evmSvc.getBlockTimestamp(log.blockNumber)
+      : null;
 
     // Check if it's supported
     const collectionMetadata = await this.collectionSvc.getSupportedInscription(hashId);
@@ -170,10 +211,13 @@ export class AppService implements OnModuleInit {
     ]);
 
     // Create the notification message
+    const priceLine = options?.pacedPost && blockTimestamp
+      ? `For: ${value} ETH ($${this.utilSvc.formatCash(Number(value) * this.dataSvc.usdPrice)}) ${this.formatBackfillTimestamp(blockTimestamp)}`
+      : `For: ${value} ETH ($${this.utilSvc.formatCash(Number(value) * this.dataSvc.usdPrice)})`;
     const notificationMessage: NotificationMessage = {
       title: `${collectionMetadata.itemName} was SOLD!`,
-      message: `For: ${value} ETH ($${this.utilSvc.formatCash(Number(value) * this.dataSvc.usdPrice)})\n\nSeller: ${sellerEns || this.utilSvc.formatAddress(seller)}\nBuyer: ${buyerEns || this.utilSvc.formatAddress(buyer)}`,
-      link: `https://etherscan.io/tx/${txHash}`,
+      message: `${priceLine}\n\nSeller: ${sellerEns || this.utilSvc.formatAddress(seller)}\nBuyer: ${buyerEns || this.utilSvc.formatAddress(buyer)}`,
+      link: this.getSaleLink(market, hashId, txHash),
       imageBuffer: imageAttachment,
       filename: `${hashId}.png`,
     };
