@@ -472,13 +472,12 @@ export class TwitterService {
     await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
 
-  private enqueueSend(task: () => Promise<void>): Promise<void> {
+  private enqueueSend(task: () => Promise<boolean>): Promise<void> {
     const queuedTask = this.sendQueue.then(async () => {
       await this.waitForPostWindow();
 
-      try {
-        await task();
-      } finally {
+      const didPost = await task();
+      if (didPost) {
         const delayMs = this.getQueuedDelayMs();
         this.nextPostNotBefore = Date.now() + delayMs;
       }
@@ -491,16 +490,16 @@ export class TwitterService {
   private async sendTweetNow(
     data: NotificationMessage,
     twitterAccount: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (this.isAccountDisabled(twitterAccount)) {
       console.log(`Twitter posting disabled for ${twitterAccount}, skipping post.`);
-      return;
+      return false;
     }
 
     // Skip Twitter if it's disabled (TWITTER_ENABLED=0)
     if (!Number(process.env.TWITTER_ENABLED)) {
       console.log("Twitter is disabled (TWITTER_ENABLED=0), skipping tweet and saving image locally instead.");
-      return;  // Skip the Twitter posting logic
+      return false;  // Skip the Twitter posting logic
     }
 
     try {
@@ -531,6 +530,7 @@ export class TwitterService {
       }
 
       await this.saveCookies(accountCookiesPath);
+      return true;
     } catch (error) {
       console.error('Failed to send tweet:', error);
       throw error;
@@ -569,6 +569,6 @@ export class TwitterService {
       return await this.enqueueSend(() => this.sendTweetNow(data, twitterAccount));
     }
 
-    return await this.sendTweetNow(data, twitterAccount);
+    await this.sendTweetNow(data, twitterAccount);
   }
 }

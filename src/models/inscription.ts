@@ -47,6 +47,7 @@ export interface InscriptionMetadata {
   collectionName: string;
   collectionImageHash: `0x${string}`;
   itemName: string;
+  itemIndex?: number;
   backgroundColor: string;
   websiteLink: string;
   collectionImageUri?: string | null | undefined;

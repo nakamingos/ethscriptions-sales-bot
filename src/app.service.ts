@@ -130,9 +130,14 @@ export class AppService implements OnModuleInit {
 
   private getSaleLink(
     market: Market,
+    itemIndex: number | undefined,
     hashId: string,
     txHash: `0x${string}`,
   ): string {
+    if (market.marketplaceUrl === 'https://ittybits.xyz' && itemIndex != null) {
+      return `${market.marketplaceUrl}/${itemIndex}`;
+    }
+
     if (market.saleLinkTemplate) {
       return market.saleLinkTemplate.replace('<ethscription_ID>', hashId);
     }
@@ -217,7 +222,7 @@ export class AppService implements OnModuleInit {
     const notificationMessage: NotificationMessage = {
       title: `${collectionMetadata.itemName} was SOLD!`,
       message: `${priceLine}\n\nSeller: ${sellerEns || this.utilSvc.formatAddress(seller)}\nBuyer: ${buyerEns || this.utilSvc.formatAddress(buyer)}`,
-      link: this.getSaleLink(market, hashId, txHash),
+      link: this.getSaleLink(market, collectionMetadata.itemIndex, hashId, txHash),
       imageBuffer: imageAttachment,
       filename: `${hashId}.png`,
     };

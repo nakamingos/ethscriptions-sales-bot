@@ -165,6 +165,7 @@ export class CollectionService implements OnModuleInit {
             collectionName,
             collectionImageHash,
             itemName: item.name || item.meta?.name,
+            itemIndex: typeof item.item_index === 'number' ? item.item_index : undefined,
             backgroundColor,
             websiteLink,
             collectionImageUri: data.logo_image_uri || data.inscription_icon || data.logo_image,
